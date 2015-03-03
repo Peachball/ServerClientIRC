@@ -4,15 +4,14 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class Server {
 
     public static void main(String[] args) throws IOException {
         ServerSocket server = new ServerSocket(9900);
-        List<Socket> client = Collections.synchronizedList(new ArrayList<Socket>());
+        CopyOnWriteArrayList<Socket> client = new CopyOnWriteArrayList<Socket>();
 
         Thread clientKicker = new Thread(new ClientKicker(client));
         Thread clientAccepter = new Thread(new ClientAccepter(client, server));
@@ -35,17 +34,15 @@ class ClientKicker implements Runnable {
     @Override
     public void run() {
         while (!Thread.currentThread().isInterrupted()) {
-            synchronized (clients) {
-                for (Socket client : clients) {
-                    if (client == null) {
-                        clients.remove(client);
-                        System.out.println("Client has been kicked");
-                    } else if (!client.isConnected()) {
-                        clients.remove(client);
-                        System.out.println("Client has been kicked");
-                    }
-                    
+            for (Socket client : clients) {
+                if (client == null) {
+                    clients.remove(client);
+                    System.out.println("Client has been kicked");
+                } else if (!client.isConnected()) {
+                    clients.remove(client);
+                    System.out.println("Client has been kicked");
                 }
+
             }
             try {
                 Thread.sleep(18);
@@ -73,9 +70,7 @@ class ClientAccepter implements Runnable {
             try {
                 Socket buffer = server.accept();
                 if (buffer != null) {
-                    synchronized (clients) {
-                        clients.add(buffer);
-                    }
+                    clients.add(buffer);
                     System.out.println("New client accepted");
                 }
             } catch (IOException ex) {
@@ -104,29 +99,27 @@ class Broadcast implements Runnable {
     public void run() {
         System.out.println("Broadcast started");
         while (!Thread.currentThread().isInterrupted()) {
-            synchronized (clients) {
-                for (Socket client : clients) {
-                    try {
-                        BufferedReader reader = new BufferedReader(new InputStreamReader(client.getInputStream()));
-                        String buffer = reader.readLine();
-                        System.out.println("Buffer recieved");
-                        if (buffer != null) {
-                            System.out.println("Input good");
-                            for (Socket asdf : clients) {
-                                PrintWriter output = new PrintWriter(asdf.getOutputStream());
-                                output.println(buffer);
-                                output.flush();
-                            }
-                        } else {
-                            System.out.println("Input not good");
+            for (Socket client : clients) {
+                try {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(client.getInputStream()));
+                    String buffer = reader.readLine();
+                    System.out.println("Buffer recieved");
+                    if (buffer != null) {
+                        System.out.println("Input good");
+                        for (Socket asdf : clients) {
+                            PrintWriter output = new PrintWriter(asdf.getOutputStream());
+                            output.println(buffer);
+                            output.flush();
                         }
-
-                    } catch (IOException ex) {
-                        clients.remove(client);
-                        System.out.println("Client has been kicked");
+                    } else {
+                        System.out.println("Input not good");
                     }
 
+                } catch (IOException ex) {
+                    clients.remove(client);
+                    System.out.println("Client has been kicked");
                 }
+
             }
             try {
                 Thread.sleep(20);
