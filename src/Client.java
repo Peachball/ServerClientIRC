@@ -1,22 +1,36 @@
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.Scanner;
 
 public class Client {
+    
+    Socket client;
+    ObjectInputStream reader;
+    
+    public Client(String ip, int port) throws IOException{
+        client = new Socket(ip,port);
+        reader = new ObjectInputStream(client.getInputStream());
+    }
+    
+    public Client(Socket client) throws IOException{
+        this.client = client;
+        client.getInputStream().reset();
+    }
 
     public static void main(String[] args) throws IOException {
-        Socket client = new Socket("192.168.0.2", 9900);
+        Socket client = new Socket("192.168.0.4", 9900);
         BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
-        PrintWriter out = new PrintWriter(client.getOutputStream());
-        Thread messageListener = new Thread(new MessageListener(in));
+        ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
+        Thread messageListener = new Thread(new MessageListener(client));
         messageListener.start();
         Scanner input = new Scanner(System.in);
         while (true) {
-            String buffer = input.nextLine();
-            out.println(buffer);
+            Message buffer = new Message(input.nextLine());
+            out.writeObject(buffer);
             out.flush();
         }
     }
@@ -24,19 +38,25 @@ public class Client {
 
 class MessageListener implements Runnable {
 
-    private BufferedReader input;
+    private Socket client;
 
-    public MessageListener(BufferedReader input) {
-        this.input = input;
+    public MessageListener(Socket input) {
+        client = input;
     }
 
     @Override
     public void run() {
         while (!Thread.currentThread().isInterrupted()) {
             try {
-                System.out.println(input.readLine());
+                ObjectInputStream in = new ObjectInputStream(client.getInputStream());
+                Object buffer = in.readObject();
+                if(buffer instanceof Message){
+                    System.out.println(((Message) buffer).message + ((Message) buffer).sender);
+                }
             } catch (IOException ex) {
                 System.out.println("recieved weird input");
+            } catch (ClassNotFoundException ex) {
+                System.out.println("Found no class?");
             }
         }
     }
