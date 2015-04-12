@@ -10,22 +10,24 @@ public class Client {
     
     Socket client;
     ObjectInputStream reader;
+    ObjectOutputStream sender;
     
     public Client(String ip, int port) throws IOException{
         client = new Socket(ip,port);
         reader = new ObjectInputStream(client.getInputStream());
+        sender = new ObjectOutputStream(client.getOutputStream());
     }
     
     public Client(Socket client) throws IOException{
         this.client = client;
-        client.getInputStream().reset();
+        reader = new ObjectInputStream(client.getInputStream());
     }
 
     public static void main(String[] args) throws IOException {
         Socket client = new Socket("192.168.0.4", 9900);
         BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
         ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
-        Thread messageListener = new Thread(new MessageListener(client));
+        Thread messageListener = new Thread(new MessageListener(new Client(client)));
         messageListener.start();
         Scanner input = new Scanner(System.in);
         while (true) {
@@ -38,9 +40,9 @@ public class Client {
 
 class MessageListener implements Runnable {
 
-    private Socket client;
+    private Client client;
 
-    public MessageListener(Socket input) {
+    public MessageListener(Client input) {
         client = input;
     }
 
@@ -48,7 +50,7 @@ class MessageListener implements Runnable {
     public void run() {
         while (!Thread.currentThread().isInterrupted()) {
             try {
-                ObjectInputStream in = new ObjectInputStream(client.getInputStream());
+                ObjectInputStream in = client.reader;
                 Object buffer = in.readObject();
                 if(buffer instanceof Message){
                     System.out.println(((Message) buffer).message + ((Message) buffer).sender);

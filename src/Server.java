@@ -114,7 +114,7 @@ class Broadcast implements Runnable {
                     if (buffer != null) {
                         System.out.println("Input good");
                         for (Client asdf : clients) {
-                            ObjectOutputStream output = new ObjectOutputStream(asdf.client.getOutputStream());
+                            ObjectOutputStream output = new ObjectOutputStream(asdf.sender);
                             output.writeObject(buffer);
                             output.flush();
                         }
